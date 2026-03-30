@@ -21,7 +21,7 @@ struct ClipboardEntryRepository {
 
     func delete(id: Int64) async throws {
         try await pool.write { db in
-            try ClipboardEntry.deleteOne(db, id: id)
+            try ClipboardEntry.filter(key: id).deleteAll(db)
         }
     }
 
@@ -33,7 +33,7 @@ struct ClipboardEntryRepository {
 
     func toggleFavorite(id: Int64) async throws {
         try await pool.write { db in
-            if var entry = try ClipboardEntry.fetchOne(db, id: id) {
+            if var entry = try ClipboardEntry.filter(key: id).fetchOne(db) {
                 entry.isFavorite.toggle()
                 try entry.update(db)
             }
