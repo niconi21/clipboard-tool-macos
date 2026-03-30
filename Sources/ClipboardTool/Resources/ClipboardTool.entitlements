@@ -6,11 +6,7 @@
     <key>com.apple.security.app-sandbox</key>
     <true/>
 
-    <!-- Clipboard read access -->
-    <key>com.apple.security.temporary-exception.sbpl</key>
-    <array>
-        <string>(allow user-preference-read (preference-domain "com.apple.universalaccess"))</string>
-    </array>
+    <!-- NSPasteboard read/write works inside sandbox without extra entitlement -->
 
     <!-- Outgoing network (needed by Sparkle for update checks) -->
     <key>com.apple.security.network.client</key>

@@ -23,9 +23,7 @@ let package = Package(
             resources: [
                 .process("Resources")
             ],
-            swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
-            ]
+            swiftSettings: []
         ),
         .testTarget(
             name: "ClipboardToolTests",

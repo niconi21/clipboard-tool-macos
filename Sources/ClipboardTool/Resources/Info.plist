@@ -25,8 +25,7 @@
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
 
-    <!-- Accessibility usage description (needed for global hotkeys in sandbox) -->
-    <key>NSAppleEventsUsageDescription</key>
-    <string>ClipboardTool needs accessibility access to register a global keyboard shortcut.</string>
+    <!-- Global hotkey accessibility prompt is handled at runtime by KeyboardShortcuts —
+         no Info.plist key required. Prompt appears automatically on first use. -->
 </dict>
 </plist>
