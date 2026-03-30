@@ -100,6 +100,19 @@ Backlog → Todo → In Progress → In Validation → Done
 
 ---
 
+## Definition of Done
+
+Before moving any issue to **In Validation**, the following must be met:
+
+1. **Tests** — every new function/repository/service must have unit tests covering the happy path and key edge cases. Tests live in `Tests/ClipboardToolTests/`.
+2. **Build** — the project must compile without errors in Xcode (⌘B).
+3. **Tests pass** — all tests must pass (⌘U). No new failures allowed.
+4. **No new warnings** — warnings that would be errors in Swift 6 must be fixed before closing the issue.
+
+If any of the above fails, the issue stays **In Progress** until resolved.
+
+---
+
 ## Agents
 
 These are the roles Claude operates under depending on the task.
