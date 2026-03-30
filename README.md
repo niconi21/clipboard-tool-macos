@@ -66,8 +66,4 @@ swift build
 
 ## Version
 
-Current version is defined in `Sources/ClipboardTool/Resources/Info.plist` → `CFBundleShortVersionString`.
-
-```bash
-/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Sources/ClipboardTool/Resources/Info.plist
-```
+Current version is defined in `Package.swift` → `infoPlist` → `CFBundleShortVersionString`.
