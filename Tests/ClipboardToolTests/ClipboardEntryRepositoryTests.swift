@@ -3,16 +3,16 @@ import GRDB
 @testable import ClipboardTool
 
 final class ClipboardEntryRepositoryTests: XCTestCase {
-    private var pool: DatabasePool!
+    private var queue: DatabaseQueue!
     private var repository: ClipboardEntryRepository!
 
     override func setUp() async throws {
         // In-memory DB for tests — isolated, no disk I/O
-        pool = try DatabasePool()
+        queue = try DatabaseQueue()
         var migrator = DatabaseMigrator()
         Migrations.register(in: &migrator)
-        try migrator.migrate(pool)
-        repository = ClipboardEntryRepository(pool: pool)
+        try migrator.migrate(queue)
+        repository = ClipboardEntryRepository(db: queue)
     }
 
     func testInsertAndFetch() async throws {
@@ -43,7 +43,8 @@ final class ClipboardEntryRepositoryTests: XCTestCase {
             try await repository.insert(e)
         }
         try await repository.deleteAll()
-        XCTAssertEqual(try await repository.count(), 0)
+        let total = try await repository.count()
+        XCTAssertEqual(total, 0)
     }
 
     func testToggleFavorite() async throws {
@@ -75,8 +76,10 @@ final class ClipboardEntryRepositoryTests: XCTestCase {
                                    contentType: .text, createdAt: .now, isFavorite: false)
         try await repository.insert(entry)
 
-        XCTAssertTrue(try await repository.exists(content: "Unique content"))
-        XCTAssertFalse(try await repository.exists(content: "Not there"))
+        let exists = try await repository.exists(content: "Unique content")
+        let notExists = try await repository.exists(content: "Not there")
+        XCTAssertTrue(exists)
+        XCTAssertFalse(notExists)
     }
 
     func testPagination() async throws {
