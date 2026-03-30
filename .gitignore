@@ -29,3 +29,6 @@ Icon?
 # Env / secrets
 .env
 *.pem
+
+# Mockups (local only)
+mockup/
