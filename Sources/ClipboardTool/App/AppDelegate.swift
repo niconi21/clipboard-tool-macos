@@ -9,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Hide from Dock — menu bar only
         NSApp.setActivationPolicy(.accessory)
 
+        // Boot database — runs migrations on first launch
+        _ = DatabaseManager.shared
+
         setupMenuBar()
     }
 

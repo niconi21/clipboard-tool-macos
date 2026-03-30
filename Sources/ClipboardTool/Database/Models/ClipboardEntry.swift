@@ -1,9 +1,7 @@
 import Foundation
 import GRDB
 
-// Represents a single item captured from the clipboard.
-// Full schema and CRUD tracked in issue #8.
-struct ClipboardEntry: Codable, FetchableRecord, PersistableRecord {
+struct ClipboardEntry: Codable, FetchableRecord, MutablePersistableRecord {
     var id: Int64?
     var content: String
     var contentType: ContentType
@@ -11,4 +9,17 @@ struct ClipboardEntry: Codable, FetchableRecord, PersistableRecord {
     var isFavorite: Bool
 
     static let databaseTableName = "clipboard_entries"
+
+    // Map Swift camelCase to SQL snake_case
+    enum Columns {
+        static let id          = Column(CodingKeys.id)
+        static let content     = Column(CodingKeys.content)
+        static let contentType = Column(CodingKeys.contentType)
+        static let createdAt   = Column(CodingKeys.createdAt)
+        static let isFavorite  = Column(CodingKeys.isFavorite)
+    }
+
+    mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
 }
