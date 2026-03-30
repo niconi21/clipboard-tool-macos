@@ -23,7 +23,13 @@ let package = Package(
             resources: [
                 .process("Resources")
             ],
-            infoPlist: .infoFile(path: "Sources/ClipboardTool/Info.plist")
+            infoPlist: .extendingDefault(with: [
+                "CFBundleIdentifier":        .string("com.niconi21.clipboardtool"),
+                "CFBundleShortVersionString": .string("1.0.0"),
+                "CFBundleVersion":           .string("1"),
+                "LSUIElement":               .boolean(true),
+                "LSMinimumSystemVersion":    .string("13.0"),
+            ])
         ),
         .testTarget(
             name: "ClipboardToolTests",
