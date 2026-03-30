@@ -23,7 +23,7 @@ let package = Package(
             resources: [
                 .process("Resources")
             ],
-            swiftSettings: []
+            infoPlist: .infoFile(path: "Sources/ClipboardTool/Info.plist")
         ),
         .testTarget(
             name: "ClipboardToolTests",
