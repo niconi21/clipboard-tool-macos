@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>ClipboardTool</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>com.niconi21.clipboardtool</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <!-- No Dock icon — menu bar only -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- Minimum macOS version -->
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+
+    <!-- Accessibility usage description (needed for global hotkeys in sandbox) -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>ClipboardTool needs accessibility access to register a global keyboard shortcut.</string>
+</dict>
+</plist>
