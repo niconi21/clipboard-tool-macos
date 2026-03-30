@@ -12,22 +12,22 @@ struct ClipboardEntryRepository {
 
     @discardableResult
     func insert(_ entry: ClipboardEntry) async throws -> ClipboardEntry {
-        var entry = entry
         try await pool.write { db in
-            try entry.insert(db)
+            var mutableEntry = entry
+            try mutableEntry.insert(db)
+            return mutableEntry
         }
-        return entry
     }
 
     func delete(id: Int64) async throws {
         try await pool.write { db in
-            try ClipboardEntry.filter(key: id).deleteAll(db)
+            _ = try ClipboardEntry.filter(key: id).deleteAll(db)
         }
     }
 
     func deleteAll() async throws {
         try await pool.write { db in
-            try ClipboardEntry.deleteAll(db)
+            _ = try ClipboardEntry.deleteAll(db)
         }
     }
 
