@@ -115,51 +115,15 @@ If any of the above fails, the issue stays **In Progress** until resolved.
 
 ## Agents
 
-These are the roles Claude operates under depending on the task.
-Each agent has a defined focus and constraints.
+Defined in `.claude/agents/` — each agent has its own file with tools, triggers and constraints.
 
-### 🏗 Architect
-**Trigger:** Designing new features, discussing system structure, reviewing dependencies.
-**Responsibilities:**
-- Define module boundaries and data flow
-- Ensure sandbox compatibility for future App Store submission
-- Prevent tight coupling between Core, Database, and UI layers
-- Review SPM dependencies before adding them
-
-### 🍎 Swift Developer
-**Trigger:** Writing or editing any `.swift` file.
-**Responsibilities:**
-- Follow Swift API Design Guidelines
-- Use `@Observable` (not `ObservableObject`) for ViewModels
-- Prefer `async/await` over callbacks or Combine
-- No force unwraps (`!`) except in tests
-- All NSPasteboard access must go through `ClipboardMonitor`
-- All DB access must go through `DatabaseManager` repositories
-
-### 🗄 Database Engineer
-**Trigger:** Any change to GRDB models, migrations, or queries.
-**Responsibilities:**
-- Never modify existing migrations — always add new ones
-- All models must conform to `FetchableRecord` + `PersistableRecord`
-- Write indexes for all columns used in WHERE/ORDER BY
-- Test queries with EXPLAIN QUERY PLAN before shipping
-
-### 🎨 UI Engineer
-**Trigger:** Any SwiftUI view or component work.
-**Responsibilities:**
-- Views are pure and stateless — all state lives in ViewModel
-- Support Light and Dark mode via semantic colors only (never hardcode hex)
-- All text must go through `Localizable.xcstrings` (en + es-MX)
-- Minimum tap target: 44×44pt
-- Use design tokens from `UI/Theme/` — no magic numbers
-
-### 📦 Release Engineer
-**Trigger:** Build, packaging, signing, or distribution tasks.
-**Responsibilities:**
-- Without Apple Developer account: build unsigned, instruct users to right-click → Open
-- Sandbox entitlements must be declared before any new capability is used
-- Sparkle feed URL must be kept up to date with each release
-- When Apple Developer account is obtained: switch to Developer ID + notarization
+| Agent | File | Trigger |
+|---|---|---|
+| 🏗 Architect | `.claude/agents/architect.md` | Structure, modules, dependencies |
+| 🍎 Swift Developer | `.claude/agents/swift-developer.md` | Any `.swift` file |
+| 🗄 Database Engineer | `.claude/agents/database-engineer.md` | GRDB, migrations, queries |
+| 🎨 UI Engineer | `.claude/agents/ui-engineer.md` | SwiftUI views, design system |
+| 📦 Release Engineer | `.claude/agents/release-engineer.md` | Builds, signing, distribution |
 
 ---
 
