@@ -50,14 +50,9 @@ Native macOS clipboard manager built with Swift + SwiftUI.
 
 4. The app has no Dock icon — look for the clipboard icon (⌘) in your **menu bar**.
 
-### Option B — Swift CLI
+### Option B — Swift CLI ⚠️
 
-```bash
-swift build
-.build/debug/ClipboardTool
-```
-
-> The app will appear in your menu bar, not in the Dock. If you don't see it, check that your menu bar isn't full (macOS hides icons when there's no space).
+> **Not recommended.** Dependencies use SwiftUI preview macros (`#Preview`) that require Xcode's build system. `swift build` from CLI will fail with macro plugin errors. Use Xcode instead.
 
 ## First run notes
 
