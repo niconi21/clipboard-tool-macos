@@ -1,35 +1,127 @@
+import AppKit
 import SwiftUI
 
 // Scrollable list of clipboard entries grouped by date.
-// Implementation tracked in issue #11.
+// Implementation tracked in issues #11, #22, #23, #24, #25, #27, #28, #31, #33.
 struct HistoryView: View {
     @Bindable var viewModel: HistoryViewModel
     @Environment(\.closePopover) private var closePopover
+
+    /// Tracks whether the list is scrolled past the first item to show the scroll-to-top button.
+    @State private var isScrolledDown = false
+    /// Controls the alias-entry sheet for a selected entry.
+    @State private var aliasTarget: ClipboardEntry? = nil
+    /// The text the user is typing into the alias NSAlert.
+    @State private var pendingAlias: String = ""
+
+    private let topAnchorID = "historyListTop"
 
     var body: some View {
         if viewModel.groupedEntries.isEmpty {
             emptyState
         } else {
-            List(selection: $viewModel.selectedId) {
-                ForEach(viewModel.groupedEntries, id: \.label) { group in
-                    Section(group.label) {
-                        ForEach(group.entries) { entry in
-                            EntryRowView(entry: entry)
-                                .tag(entry.id)
-                                .contextMenu { contextMenu(for: entry) }
-                                .onTapGesture {
-                                    viewModel.copy(entry: entry)
-                                    closePopover()
-                                }
+            HSplitView {
+                listPanel
+                if viewModel.selectedId != nil {
+                    detailPanel
+                        .frame(minWidth: 200)
+                }
+            }
+        }
+    }
+
+    // MARK: - List panel
+
+    private var listPanel: some View {
+        ZStack(alignment: .bottomTrailing) {
+            ScrollViewReader { proxy in
+                List(selection: $viewModel.selectedId) {
+                    // Invisible anchor at top for scroll-to-top
+                    Color.clear
+                        .frame(height: 0)
+                        .id(topAnchorID)
+
+                    ForEach(viewModel.groupedEntries, id: \.label) { group in
+                        Section(group.label) {
+                            ForEach(group.entries) { entry in
+                                EntryRowView(entry: entry)
+                                    .tag(entry.id)
+                                    .contextMenu { contextMenu(for: entry) }
+                                    .onTapGesture {
+                                        viewModel.copy(entry: entry)
+                                        closePopover()
+                                    }
+                            }
                         }
                     }
                 }
+                .listStyle(.sidebar)
+                .frame(minWidth: 240, maxWidth: 320)
+                .onKeyPress(.return) {
+                    viewModel.copySelected()
+                    closePopover()
+                    return .handled
+                }
+                // Detect scroll position to toggle the scroll-to-top button.
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(
+                                key: ScrollOffsetPreference.self,
+                                value: geo.frame(in: .named("historyScroll")).minY
+                            )
+                    }
+                )
+                .coordinateSpace(name: "historyScroll")
+                .onPreferenceChange(ScrollOffsetPreference.self) { value in
+                    withAnimation(Animations.list) {
+                        isScrolledDown = value < -40
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if isScrolledDown {
+                        Button {
+                            withAnimation(Animations.list) {
+                                proxy.scrollTo(topAnchorID, anchor: .top)
+                            }
+                        } label: {
+                            Image(systemName: "chevron.up.circle.fill")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .shadow(radius: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(Spacing.md)
+                        .transition(.opacity.combined(with: .scale))
+                    }
+                }
+                // Re-classify All toolbar button
+                .toolbar {
+                    ToolbarItem(placement: .automatic) {
+                        Button {
+                            viewModel.reclassifyAll()
+                        } label: {
+                            Label(
+                                String(localized: "Re-classify All"),
+                                systemImage: "wand.and.stars"
+                            )
+                        }
+                        .help(String(localized: "Re-classify all entries that have not been manually overridden"))
+                    }
+                }
             }
-            .listStyle(.sidebar)
-            .onKeyPress(.return) {
-                viewModel.copySelected()
+        }
+    }
+
+    // MARK: - Detail panel
+
+    @ViewBuilder
+    private var detailPanel: some View {
+        if let selectedId = viewModel.selectedId,
+           let entry = viewModel.groupedEntries.flatMap(\.entries).first(where: { $0.id == selectedId }) {
+            EntryDetailView(entry: entry) {
+                viewModel.copy(entry: entry)
                 closePopover()
-                return .handled
             }
         }
     }
@@ -59,13 +151,100 @@ struct HistoryView: View {
             viewModel.copy(entry: entry)
             closePopover()
         }
+
         Divider()
+
         Button(entry.isFavorite ? String(localized: "Unfavorite") : String(localized: "Favorite")) {
             viewModel.toggleFavorite(entry: entry)
         }
+
         Divider()
+
+        // #23 — Alias
+        Button(String(localized: "Set Alias…")) {
+            showAliasAlert(for: entry)
+        }
+        if entry.alias != nil {
+            Button(String(localized: "Clear Alias")) {
+                guard let id = entry.id else { return }
+                viewModel.setAlias(id: id, alias: nil)
+            }
+        }
+
+        Divider()
+
+        // #27 — Content type override submenu
+        Menu(String(localized: "Set Content Type…")) {
+            ForEach(ContentType.allCases, id: \.self) { type in
+                Button(type.displayLabel) {
+                    guard let id = entry.id else { return }
+                    viewModel.setContentType(id: id, type: type)
+                }
+            }
+        }
+
+        // #28 — Re-classify individual entry
+        Button(String(localized: "Re-classify")) {
+            guard let id = entry.id, !entry.manualOverride else { return }
+            viewModel.reclassifyEntry(entry: entry)
+        }
+
+        Divider()
+
         Button(String(localized: "Delete"), role: .destructive) {
             viewModel.delete(entry: entry)
+        }
+    }
+
+    // MARK: - Alias alert
+
+    private func showAliasAlert(for entry: ClipboardEntry) {
+        guard let id = entry.id else { return }
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Set Alias")
+        alert.informativeText = String(localized: "Enter a short alias for this clipboard entry.")
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: String(localized: "Save"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 22))
+        textField.placeholderString = String(localized: "e.g. My API key")
+        textField.stringValue = entry.alias ?? ""
+        alert.accessoryView = textField
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let value = textField.stringValue.trimmingCharacters(in: .whitespaces)
+            viewModel.setAlias(id: id, alias: value.isEmpty ? nil : value)
+        }
+    }
+}
+
+// MARK: - Scroll offset preference key
+
+private struct ScrollOffsetPreference: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+// MARK: - ContentType helpers for UI
+
+private extension ContentType {
+    var displayLabel: String {
+        switch self {
+        case .url:      return String(localized: "URL")
+        case .email:    return String(localized: "Email")
+        case .phone:    return String(localized: "Phone")
+        case .color:    return String(localized: "Color")
+        case .code:     return String(localized: "Code")
+        case .text:     return String(localized: "Text")
+        case .json:     return String(localized: "JSON")
+        case .sql:      return String(localized: "SQL")
+        case .shell:    return String(localized: "Shell")
+        case .markdown: return String(localized: "Markdown")
+        case .image:    return String(localized: "Image")
         }
     }
 }

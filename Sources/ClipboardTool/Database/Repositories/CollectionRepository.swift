@@ -75,6 +75,15 @@ struct CollectionRepository {
         }
     }
 
+    func fetchRules() async throws -> [CollectionRule] {
+        try await db.read { db in
+            try CollectionRule
+                .filter(CollectionRule.Columns.enabled == true)
+                .order(CollectionRule.Columns.priority.desc)
+                .fetchAll(db)
+        }
+    }
+
     func fetchCollections(forEntryId entryId: Int64) async throws -> [Collection] {
         try await db.read { db in
             try Collection.fetchAll(db, sql: """

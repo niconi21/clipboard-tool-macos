@@ -19,6 +19,21 @@ struct MenuBarView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button {
+                    if historyViewModel.isPaused {
+                        historyViewModel.resumeMonitoring()
+                    } else {
+                        historyViewModel.pauseMonitoring()
+                    }
+                } label: {
+                    Image(systemName: historyViewModel.isPaused ? "play.circle" : "pause.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help(historyViewModel.isPaused
+                      ? String(localized: "Resume monitoring")
+                      : String(localized: "Pause monitoring"))
+                Button {
                     openSettings()
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {

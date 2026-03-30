@@ -4,17 +4,25 @@ struct CollectionsView: View {
     @Bindable var viewModel: CollectionsViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            if viewModel.collections.isEmpty && !viewModel.isCreating {
-                emptyState
-            } else {
-                collectionList
-            }
+        NavigationStack {
+            VStack(spacing: 0) {
+                if viewModel.collections.isEmpty && !viewModel.isCreating {
+                    emptyState
+                } else {
+                    collectionList
+                }
 
-            Divider()
-            footer
+                Divider()
+                footer
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationDestination(isPresented: $viewModel.isShowingSubcollections) {
+                if let collection = viewModel.subcollectionsTarget {
+                    SubcollectionsView(collection: collection)
+                        .navigationBarBackButtonHidden(true)
+                }
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Empty state
@@ -54,7 +62,11 @@ struct CollectionsView: View {
                 ForEach(viewModel.collections, id: \.id) { collection in
                     CollectionRowView(
                         collection: collection,
-                        isSelected: viewModel.selectedCollection?.id == collection.id
+                        isSelected: viewModel.selectedCollection?.id == collection.id,
+                        onSubcollectionsTap: {
+                            viewModel.subcollectionsTarget = collection
+                            viewModel.isShowingSubcollections = true
+                        }
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -183,6 +195,7 @@ struct CollectionsView: View {
 private struct CollectionRowView: View {
     let collection: Collection
     let isSelected: Bool
+    let onSubcollectionsTap: () -> Void
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -198,9 +211,14 @@ private struct CollectionRowView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .regular))
-                .foregroundStyle(.tertiary)
+            Button(action: onSubcollectionsTap) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.accentColor.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+            .frame(minWidth: 28, minHeight: 28)
+            .help(String(localized: "View Subcollections"))
         }
         .padding(.vertical, Spacing.xs)
         .frame(minHeight: 44)

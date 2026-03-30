@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct Collection: Codable, FetchableRecord, MutablePersistableRecord {
+struct Collection: Codable, FetchableRecord, MutablePersistableRecord, Hashable {
     var id: Int64?
     var name: String
     var color: String

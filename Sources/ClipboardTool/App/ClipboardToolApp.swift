@@ -14,5 +14,8 @@ struct ClipboardToolApp: App {
         Settings {
             SettingsView()
         }
+        // Onboarding is shown on first launch by AppDelegate when
+        // UserDefaults.standard.bool(forKey: "onboardingCompleted") is false.
+        // AppDelegate sets the key to true when the user completes the flow.
     }
 }

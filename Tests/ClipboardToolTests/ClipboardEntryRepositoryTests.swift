@@ -94,4 +94,70 @@ final class ClipboardEntryRepositoryTests: XCTestCase {
         XCTAssertEqual(page2.count, 5)
         XCTAssertNotEqual(page1.first?.content, page2.first?.content)
     }
+
+    // MARK: - updateAlias (#23)
+
+    func testUpdateAlias() async throws {
+        let inserted = try await repository.insert(
+            ClipboardEntry(id: nil, content: "alias test", contentType: .text,
+                           createdAt: .now, isFavorite: false)
+        )
+        try await repository.updateAlias(id: inserted.id!, alias: "My Label")
+
+        let results = try await repository.fetchRecent()
+        XCTAssertEqual(results.first?.alias, "My Label")
+    }
+
+    func testUpdateAliasClear() async throws {
+        let inserted = try await repository.insert(
+            ClipboardEntry(id: nil, content: "alias clear test", contentType: .text,
+                           createdAt: .now, isFavorite: false, alias: "Old")
+        )
+        try await repository.updateAlias(id: inserted.id!, alias: nil)
+
+        let results = try await repository.fetchRecent()
+        XCTAssertNil(results.first?.alias)
+    }
+
+    // MARK: - updateContentType (#27)
+
+    func testUpdateContentTypeSetsManualOverride() async throws {
+        let inserted = try await repository.insert(
+            ClipboardEntry(id: nil, content: "https://example.com", contentType: .url,
+                           createdAt: .now, isFavorite: false)
+        )
+        XCTAssertFalse(inserted.manualOverride)
+
+        try await repository.updateContentType(id: inserted.id!, contentType: .text)
+
+        let results = try await repository.fetchRecent()
+        XCTAssertEqual(results.first?.contentType, .text)
+        XCTAssertTrue(results.first?.manualOverride ?? false)
+    }
+
+    // MARK: - clearManualOverride (#28)
+
+    func testClearManualOverride() async throws {
+        let inserted = try await repository.insert(
+            ClipboardEntry(id: nil, content: "some text", contentType: .text,
+                           createdAt: .now, isFavorite: false)
+        )
+        try await repository.updateContentType(id: inserted.id!, contentType: .code)
+        try await repository.clearManualOverride(id: inserted.id!)
+
+        let results = try await repository.fetchRecent()
+        XCTAssertFalse(results.first?.manualOverride ?? true)
+    }
+
+    // MARK: - fetchAll (#28)
+
+    func testFetchAllReturnsAllEntries() async throws {
+        for i in 1...5 {
+            let e = ClipboardEntry(id: nil, content: "FetchAll \(i)",
+                                   contentType: .text, createdAt: .now, isFavorite: false)
+            try await repository.insert(e)
+        }
+        let all = try await repository.fetchAll()
+        XCTAssertEqual(all.count, 5)
+    }
 }

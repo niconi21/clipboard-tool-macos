@@ -11,6 +11,7 @@ let package = Package(
         .package(url: "https://github.com/groue/GRDB.swift", from: "6.0.0"),
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+        .package(url: "https://github.com/raspu/Highlightr.git", from: "2.2.0"),
     ],
     targets: [
         .executableTarget(
@@ -19,6 +20,7 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
                 .product(name: "Sparkle", package: "Sparkle"),
+                "Highlightr",
             ],
             path: "Sources/ClipboardTool",
             resources: [

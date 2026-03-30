@@ -3,7 +3,7 @@ import Foundation
 // Detects content type from a string (URL, email, phone, color, code, text, etc.).
 // All case raw values match the Linux version's content_types table names exactly
 // to enable cross-platform JSON export/import.
-enum ContentType: String, Codable {
+enum ContentType: String, Codable, CaseIterable {
     case url
     case email
     case phone
@@ -14,6 +14,7 @@ enum ContentType: String, Codable {
     case sql
     case shell
     case markdown
+    case image
 }
 
 struct ContentClassifier {

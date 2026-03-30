@@ -7,6 +7,8 @@ final class CollectionsViewModel {
     private(set) var entriesInSelected: [ClipboardEntry] = []
     var newCollectionName: String = ""
     var isCreating: Bool = false
+    var subcollectionsTarget: Collection? = nil
+    var isShowingSubcollections: Bool = false
 
     private let repository = CollectionRepository()
 

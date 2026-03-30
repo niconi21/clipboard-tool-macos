@@ -9,6 +9,9 @@ final class HistoryViewModel {
     private(set) var groupedEntries: [(label: String, entries: [ClipboardEntry])] = []
     var selectedId: Int64? = nil
 
+    /// Forwarded from `ClipboardMonitor.isPaused` so the UI can bind to it.
+    var isPaused: Bool { monitor.isPaused }
+
     // MARK: - Search
 
     var searchText: String = "" {
@@ -27,13 +30,17 @@ final class HistoryViewModel {
     // MARK: - Private
 
     private let repository: ClipboardEntryRepository
+    private let collectionRepository: CollectionRepository
     private let monitor: ClipboardMonitor
     private let classifier = ContentClassifier()
+    private let ruleEngine = CollectionRuleEngine()
     private var monitorTask: Task<Void, Never>?
 
     init(repository: ClipboardEntryRepository = ClipboardEntryRepository(),
+         collectionRepository: CollectionRepository = CollectionRepository(),
          monitor: ClipboardMonitor = ClipboardMonitor()) {
         self.repository = repository
+        self.collectionRepository = collectionRepository
         self.monitor = monitor
     }
 
@@ -78,6 +85,60 @@ final class HistoryViewModel {
         }
     }
 
+    /// Pauses clipboard monitoring. If `duration` is given, monitoring
+    /// auto-resumes after that many seconds.
+    func pauseMonitoring(for duration: TimeInterval? = nil) {
+        monitor.pause(for: duration)
+    }
+
+    /// Resumes clipboard monitoring immediately.
+    func resumeMonitoring() {
+        monitor.resume()
+    }
+
+    func setAlias(id: Int64, alias: String?) {
+        Task {
+            try? await repository.updateAlias(id: id, alias: alias)
+            await loadEntries()
+        }
+    }
+
+    func setContentType(id: Int64, type: ContentType) {
+        Task {
+            try? await repository.updateContentType(id: id, contentType: type)
+            await loadEntries()
+        }
+    }
+
+    func reclassifyEntry(entry: ClipboardEntry) {
+        guard let entryId = entry.id, !entry.manualOverride else { return }
+        Task {
+            let detected = classifier.classify(entry.content)
+            if detected != entry.contentType {
+                try? await repository.updateContentType(id: entryId, contentType: detected)
+                try? await repository.clearManualOverride(id: entryId)
+            }
+            await loadEntries()
+        }
+    }
+
+    func reclassifyAll() {
+        Task {
+            let all = (try? await repository.fetchAll()) ?? []
+            for entry in all where !entry.manualOverride {
+                guard let entryId = entry.id else { continue }
+                let detected = classifier.classify(entry.content)
+                if detected != entry.contentType {
+                    try? await repository.updateContentType(id: entryId, contentType: detected)
+                    // updateContentType sets manualOverride = true, so we clear it after
+                    // by writing a second pass that preserves manualOverride = false.
+                    try? await repository.clearManualOverride(id: entryId)
+                }
+            }
+            await loadEntries()
+        }
+    }
+
     func copySelected() {
         guard let id = selectedId,
               let entry = groupedEntries.flatMap(\.entries).first(where: { $0.id == id })
@@ -109,7 +170,12 @@ final class HistoryViewModel {
     private func handleNewContent(_ content: String) async {
         guard let alreadyExists = try? await repository.exists(content: content),
               !alreadyExists else { return }
-        let contentType = classifier.classify(content)
+        let contentType: ContentType
+        if content.hasPrefix("images/") {
+            contentType = .image
+        } else {
+            contentType = classifier.classify(content)
+        }
         let entry = ClipboardEntry(
             id: nil,
             content: content,
@@ -117,7 +183,16 @@ final class HistoryViewModel {
             createdAt: Date(),
             isFavorite: false
         )
-        try? await repository.insert(entry)
+        let savedEntry = try? await repository.insert(entry)
+        if let savedEntry, let entryId = savedEntry.id {
+            let collectionIds = (try? await ruleEngine.matchingCollections(
+                for: savedEntry,
+                db: DatabaseManager.shared.pool
+            )) ?? []
+            for colId in collectionIds {
+                try? await collectionRepository.addEntry(entryId, to: colId)
+            }
+        }
         await loadEntries()
     }
 

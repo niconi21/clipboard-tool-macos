@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var hotkeyManager: HotkeyManager?
+    private var onboardingWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock — menu bar only
@@ -27,6 +28,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.togglePopover()
         })
         hotkeyManager?.register()
+
+        // Show onboarding on very first launch
+        if !UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+            showOnboarding()
+        }
+    }
+
+    func showOnboarding() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 400),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = String(localized: "Welcome to ClipboardTool")
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+        window.center()
+        window.setFrameAutosaveName("OnboardingWindow")
+
+        let onboardingView = OnboardingView {
+            self.onboardingWindow?.close()
+            self.onboardingWindow = nil
+        }
+
+        window.contentViewController = NSHostingController(rootView: onboardingView)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        onboardingWindow = window
     }
 
     private func setupMenuBar() {

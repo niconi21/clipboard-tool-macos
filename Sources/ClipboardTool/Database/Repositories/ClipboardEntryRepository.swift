@@ -40,6 +40,34 @@ struct ClipboardEntryRepository {
         }
     }
 
+    func updateAlias(id: Int64, alias: String?) async throws {
+        try await db.write { db in
+            if var entry = try ClipboardEntry.filter(key: id).fetchOne(db) {
+                entry.alias = alias
+                try entry.update(db)
+            }
+        }
+    }
+
+    func updateContentType(id: Int64, contentType: ContentType) async throws {
+        try await db.write { db in
+            if var entry = try ClipboardEntry.filter(key: id).fetchOne(db) {
+                entry.contentType = contentType
+                entry.manualOverride = true
+                try entry.update(db)
+            }
+        }
+    }
+
+    func clearManualOverride(id: Int64) async throws {
+        try await db.write { db in
+            if var entry = try ClipboardEntry.filter(key: id).fetchOne(db) {
+                entry.manualOverride = false
+                try entry.update(db)
+            }
+        }
+    }
+
     // MARK: - Read
 
     /// Paginated fetch ordered by most recent first.
@@ -85,6 +113,15 @@ struct ClipboardEntryRepository {
     func count() async throws -> Int {
         try await db.read { db in
             try ClipboardEntry.fetchCount(db)
+        }
+    }
+
+    /// Fetch every entry ordered by most recent first, no limit.
+    func fetchAll() async throws -> [ClipboardEntry] {
+        try await db.read { db in
+            try ClipboardEntry
+                .order(ClipboardEntry.Columns.createdAt.desc)
+                .fetchAll(db)
         }
     }
 

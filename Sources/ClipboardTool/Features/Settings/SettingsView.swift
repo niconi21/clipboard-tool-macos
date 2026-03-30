@@ -14,6 +14,8 @@ struct SettingsView: View {
                 .tabItem { Label(String(localized: "Shortcuts"), systemImage: "keyboard") }
             StorageSettingsView()
                 .tabItem { Label(String(localized: "Storage"), systemImage: "cylinder") }
+            ExportImportView()
+                .tabItem { Label(String(localized: "Data"), systemImage: "arrow.up.arrow.down") }
             AboutSettingsView()
                 .tabItem { Label(String(localized: "About"), systemImage: "info.circle") }
         }
