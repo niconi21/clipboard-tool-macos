@@ -59,6 +59,18 @@ Native macOS clipboard manager built with Swift + SwiftUI.
 - **Global hotkey:** on first use the system will ask for Accessibility permission. Grant it in System Settings → Privacy & Security → Accessibility.
 - **At this stage** the app is a scaffold — the menu bar icon is functional but views are stubs pending implementation.
 
+## Development tips
+
+### Reset the database
+
+To wipe all data and start fresh (useful during development):
+
+```bash
+rm ~/Library/Application\ Support/com.niconi21.clipboardtool/clipboard.db*
+```
+
+> Close the app before running this command. The three files (`clipboard.db`, `.db-shm`, `.db-wal`) are all part of SQLite's WAL mode — deleting them together resets the database completely. The migration will re-run and re-seed on next launch.
+
 ## Version
 
 Current version is defined in `Package.swift` → `infoPlist` → `CFBundleShortVersionString`.

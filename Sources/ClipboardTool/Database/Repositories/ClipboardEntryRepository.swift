@@ -72,11 +72,11 @@ struct ClipboardEntryRepository {
                 return []
             }
             return try ClipboardEntry.fetchAll(db, sql: """
-                SELECT clipboard_entries.*
-                FROM clipboard_entries
-                JOIN clipboard_entries_fts ON clipboard_entries.rowid = clipboard_entries_fts.rowid
-                WHERE clipboard_entries_fts MATCH ?
-                ORDER BY clipboard_entries.created_at DESC
+                SELECT entries.*
+                FROM entries
+                JOIN entries_fts ON entries.rowid = entries_fts.rowid
+                WHERE entries_fts MATCH ?
+                ORDER BY entries.created_at DESC
             """, arguments: [pattern])
         }
     }

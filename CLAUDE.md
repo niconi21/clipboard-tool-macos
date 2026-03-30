@@ -80,13 +80,30 @@ ClipboardTool/
 **Board:** https://github.com/users/niconi21/projects/41
 
 ### Issue labels
-| Label      | Use case                                      |
-|------------|-----------------------------------------------|
-| `feature`  | New capability or user-facing addition        |
-| `fix`      | Corrects existing behavior (non-urgent)       |
-| `hotfix`   | Urgent fix needing immediate attention        |
-| `chore`    | Maintenance, deps, non-functional changes     |
-| `refactor` | Code restructure without behavior change      |
+
+Every issue must have **at minimum** these three label categories:
+1. **Version** — `v1.0.0`, `v1.1.0`, etc. (read from `Supporting/Info.plist`)
+2. **Type** — one of the type labels below
+3. **Area** — one or more area labels (use multiple if the issue spans several layers)
+
+Do **not** show the word "area" anywhere in issues — just use the label names directly.
+
+| Label        | Category | Use case                                      |
+|--------------|----------|-----------------------------------------------|
+| `feature`    | type     | New capability or user-facing addition        |
+| `fix`        | type     | Corrects existing behavior (non-urgent)       |
+| `hotfix`     | type     | Urgent fix needing immediate attention        |
+| `chore`      | type     | Maintenance, deps, non-functional changes     |
+| `refactor`   | type     | Code restructure without behavior change      |
+| `clipboard`  | area     | NSPasteboard monitoring and capture           |
+| `ui`         | area     | SwiftUI views and design system               |
+| `database`   | area     | GRDB, migrations, queries                     |
+| `core`       | area     | Business logic services (Core/)               |
+| `collections`| area     | Collections and favorites                     |
+| `settings`   | area     | Settings window and preferences               |
+| `search`     | area     | Search and filtering                          |
+| `localization`| area    | i18n strings                                  |
+| `distribution`| area    | Build, signing, distribution                  |
 
 ### Status flow
 ```
