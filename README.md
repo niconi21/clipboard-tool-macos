@@ -27,7 +27,7 @@ Native macOS clipboard manager built with Swift + SwiftUI.
 
 ## Requirements
 
-- macOS 13 (Ventura) or later
+- macOS 14 (Sonoma) or later
 - Xcode 15+
 
 ## Running the app

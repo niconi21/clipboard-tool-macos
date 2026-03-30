@@ -16,7 +16,7 @@ Mirror project of [clipboard-tool](https://github.com/niconi21/clipboard-tool) (
 | Global hotkeys  | KeyboardShortcuts (sindresorhus)     |
 | Auto-start      | SMAppService                         |
 | Auto-update     | Sparkle 2 (direct dist only)         |
-| Min target      | macOS 13 (Ventura)                   |
+| Min target      | macOS 14 (Sonoma)                    |
 
 ## Distribution
 
@@ -155,7 +155,7 @@ Each agent has a defined focus and constraints.
 | Decision | Reason |
 |---|---|
 | Sandbox enabled from day 1 | Avoid refactor when submitting to App Store |
-| macOS 13 minimum | Access to `MenuBarExtra` + `SMAppService` |
+| macOS 14 minimum | Access to `@Observable`, `MenuBarExtra` + `SMAppService` |
 | GRDB over Core Data | Type-safe SQL, easier migrations, no ObjC runtime |
 | KeyboardShortcuts over CGEventTap | Handles sandbox + accessibility permissions cleanly |
 | Sparkle for updates | Standard for non-App Store macOS apps |
