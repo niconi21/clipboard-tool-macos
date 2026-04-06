@@ -68,7 +68,7 @@ struct ImageStore {
 
         // Generate and write thumbnail.
         let thumbURL = imagesDir.appendingPathComponent("\(hash)_thumb.png")
-        let thumbnail = makeThumbnail(from: image, maxHeight: Self.thumbnailMaxHeight)
+        let thumbnail = makeThumbnail(from: image, maxHeight: Self.thumbnailMaxHeight) ?? image
         let thumbPNG = try pngData(from: thumbnail)
         try thumbPNG.write(to: thumbURL, options: Data.WritingOptions.atomic)
 
@@ -82,9 +82,8 @@ struct ImageStore {
         guard relativePath.hasPrefix("images/"), relativePath.hasSuffix(".png") else {
             return nil
         }
-        // Strip the "images/" prefix and ".png" suffix to get the hash.
-        let filename = URL(fileURLWithPath: relativePath).lastPathComponent
-        let hash = filename.replacingOccurrences(of: ".png", with: "")
+        let url = URL(fileURLWithPath: relativePath)
+        let hash = url.deletingPathExtension().lastPathComponent
         return imagesDir.appendingPathComponent("\(hash)_thumb.png")
     }
 
@@ -94,7 +93,8 @@ struct ImageStore {
         guard relativePath.hasPrefix("images/"), relativePath.hasSuffix(".png") else {
             return nil
         }
-        let filename = URL(fileURLWithPath: relativePath).lastPathComponent
+        let url = URL(fileURLWithPath: relativePath)
+        let filename = url.lastPathComponent
         return imagesDir.appendingPathComponent(filename)
     }
 
@@ -147,32 +147,33 @@ struct ImageStore {
 
     /// Creates a thumbnail of `image` with a height of at most `maxHeight`
     /// pixels, preserving the original aspect ratio.
-    private func makeThumbnail(from image: NSImage, maxHeight: CGFloat) -> NSImage {
+    /// Returns `nil` if the CGContext cannot be created or the image has no
+    /// valid CGImage representation.
+    private func makeThumbnail(from image: NSImage, maxHeight: CGFloat) -> NSImage? {
         let originalSize = image.size
-        guard originalSize.height > 0 else { return image }
-
-        let scale: CGFloat
-        if originalSize.height > maxHeight {
-            scale = maxHeight / originalSize.height
-        } else {
-            scale = 1
-        }
-
-        let thumbSize = NSSize(
+        guard originalSize.height > 0 else { return nil }
+        let scale = min(maxHeight / originalSize.height, 1.0)
+        let thumbSize = CGSize(
             width: (originalSize.width * scale).rounded(),
             height: (originalSize.height * scale).rounded()
         )
 
-        let thumb = NSImage(size: thumbSize)
-        thumb.lockFocus()
-        image.draw(
-            in: NSRect(origin: .zero, size: thumbSize),
-            from: NSRect(origin: .zero, size: originalSize),
-            operation: .copy,
-            fraction: 1
-        )
-        thumb.unlockFocus()
-        return thumb
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        guard let ctx = CGContext(
+            data: nil,
+            width: Int(thumbSize.width),
+            height: Int(thumbSize.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: bitmapInfo.rawValue
+        ) else { return nil }
+        ctx.draw(cgImage, in: CGRect(origin: .zero, size: thumbSize))
+        guard let thumbCGImage = ctx.makeImage() else { return nil }
+        return NSImage(cgImage: thumbCGImage, size: thumbSize)
     }
 }
 

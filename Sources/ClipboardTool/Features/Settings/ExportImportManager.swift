@@ -89,6 +89,7 @@ struct ExportImportManager {
 
     /// Reads all user-created (non-builtin) records and serialises them as JSON `Data`.
     func export(db: any DatabaseReader) async throws -> Data {
+        let exportedAt = Date()
         let payload = try await db.read { db -> ExportPayload in
             // Settings (all keys are exportable except machine-specific ones)
             let rawSettings = try AppSetting.fetchAll(db)
@@ -108,17 +109,18 @@ struct ExportImportManager {
             // Subcollections that belong to user-created collections
             let userCollectionIds = userCollections.compactMap(\.id)
             var subcollections: [ExportedSubcollection] = []
+
+            let collectionById = Dictionary(
+                uniqueKeysWithValues: userCollections.compactMap { c -> (Int64, String)? in
+                    guard let id = c.id else { return nil }
+                    return (id, c.name)
+                }
+            )
+
             if !userCollectionIds.isEmpty {
                 let rawSubs = try Subcollection
                     .filter(userCollectionIds.contains(Subcollection.Columns.collectionId))
                     .fetchAll(db)
-
-                let collectionById = Dictionary(
-                    uniqueKeysWithValues: userCollections.compactMap { c -> (Int64, String)? in
-                        guard let id = c.id else { return nil }
-                        return (id, c.name)
-                    }
-                )
 
                 subcollections = rawSubs.compactMap { sub in
                     guard let parentName = collectionById[sub.collectionId] else { return nil }
@@ -136,13 +138,6 @@ struct ExportImportManager {
                 let rawRules = try CollectionRule
                     .filter(userCollectionIds.contains(CollectionRule.Columns.collectionId))
                     .fetchAll(db)
-
-                let collectionById = Dictionary(
-                    uniqueKeysWithValues: userCollections.compactMap { c -> (Int64, String)? in
-                        guard let id = c.id else { return nil }
-                        return (id, c.name)
-                    }
-                )
 
                 collectionRules = rawRules.compactMap { rule in
                     guard let parentName = collectionById[rule.collectionId] else { return nil }
@@ -166,7 +161,7 @@ struct ExportImportManager {
 
             return ExportPayload(
                 version: 1,
-                exportedAt: ExportImportManager.exportedAtFormatter.string(from: Date()),
+                exportedAt: ExportImportManager.exportedAtFormatter.string(from: exportedAt),
                 settings: settings,
                 collections: collections,
                 subcollections: subcollections,

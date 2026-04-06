@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import os.log
 
 struct CollectionRuleEngine {
 
@@ -18,9 +19,10 @@ struct CollectionRuleEngine {
 
         var seen = Set<Int64>()
         var result: [Int64] = []
+        var engine = self
 
         for rule in rules {
-            guard matches(rule: rule, entry: entry) else { continue }
+            guard engine.matches(rule: rule, entry: entry) else { continue }
             let collectionId = rule.collectionId
             if seen.insert(collectionId).inserted {
                 result.append(collectionId)
@@ -32,7 +34,19 @@ struct CollectionRuleEngine {
 
     // MARK: - Private
 
-    private func matches(rule: CollectionRule, entry: ClipboardEntry) -> Bool {
+    private var regexCache: [String: NSRegularExpression] = [:]
+
+    private mutating func compiledRegex(for pattern: String) -> NSRegularExpression? {
+        if let cached = regexCache[pattern] { return cached }
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            os_log(.error, "CollectionRuleEngine: invalid regex pattern '%{public}@'", pattern)
+            return nil
+        }
+        regexCache[pattern] = regex
+        return regex
+    }
+
+    private mutating func matches(rule: CollectionRule, entry: ClipboardEntry) -> Bool {
         let typeMatches: Bool
         let patternMatches: Bool
 
@@ -56,8 +70,8 @@ struct CollectionRuleEngine {
         return typeMatches && patternMatches
     }
 
-    private func regexMatches(pattern: String, in string: String) -> Bool {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+    private mutating func regexMatches(pattern: String, in string: String) -> Bool {
+        guard let regex = compiledRegex(for: pattern) else { return false }
         let range = NSRange(string.startIndex..., in: string)
         return regex.firstMatch(in: string, options: [], range: range) != nil
     }

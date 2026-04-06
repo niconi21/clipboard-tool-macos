@@ -11,6 +11,7 @@ struct ClipboardEntry: Codable, FetchableRecord, MutablePersistableRecord, Ident
     var windowTitle: String?
     var alias: String?
     var manualOverride: Bool
+    var contentHash: String?
 
     init(
         id: Int64? = nil,
@@ -21,7 +22,8 @@ struct ClipboardEntry: Codable, FetchableRecord, MutablePersistableRecord, Ident
         sourceApp: String? = nil,
         windowTitle: String? = nil,
         alias: String? = nil,
-        manualOverride: Bool = false
+        manualOverride: Bool = false,
+        contentHash: String? = nil
     ) {
         self.id = id
         self.content = content
@@ -32,6 +34,7 @@ struct ClipboardEntry: Codable, FetchableRecord, MutablePersistableRecord, Ident
         self.windowTitle = windowTitle
         self.alias = alias
         self.manualOverride = manualOverride
+        self.contentHash = contentHash
     }
 
     static let databaseTableName = "entries"
@@ -50,6 +53,7 @@ struct ClipboardEntry: Codable, FetchableRecord, MutablePersistableRecord, Ident
         static let windowTitle    = Column("window_title")
         static let alias          = Column("alias")
         static let manualOverride = Column("manual_override")
+        static let contentHash    = Column("content_hash")
     }
 
     mutating func didInsert(_ inserted: InsertionSuccess) {

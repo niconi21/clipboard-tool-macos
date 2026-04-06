@@ -5,6 +5,7 @@ struct MarkdownPreviewView: View {
     let content: String
 
     @State private var showPreview: Bool = true
+    @State private var cachedAttributed: AttributedString?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -43,10 +44,18 @@ struct MarkdownPreviewView: View {
 
     private var renderedView: some View {
         ScrollView(.vertical) {
-            Text(attributedContent)
+            Text(cachedAttributed ?? AttributedString(content))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Spacing.md)
+        }
+        .task(id: content) {
+            cachedAttributed = try? AttributedString(
+                markdown: content,
+                options: AttributedString.MarkdownParsingOptions(
+                    interpretedSyntax: .inlineOnlyPreservingWhitespace
+                )
+            )
         }
     }
 
@@ -60,14 +69,4 @@ struct MarkdownPreviewView: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private var attributedContent: AttributedString {
-        (try? AttributedString(
-            markdown: content,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace
-            )
-        )) ?? AttributedString(content)
-    }
 }

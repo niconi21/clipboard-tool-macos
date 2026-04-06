@@ -4,9 +4,9 @@ import SwiftUI
 struct EntryDetailView: View {
     let entry: ClipboardEntry
     let onCopy: () -> Void
+    var onBack: (() -> Void)? = nil
 
-    @State private var collections: [Collection] = []
-    private let collectionRepo = CollectionRepository()
+    @State private var detailViewModel = EntryDetailViewModel()
 
     var body: some View {
         ScrollView(.vertical) {
@@ -19,9 +19,9 @@ struct EntryDetailView: View {
             .padding(Spacing.md)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
+        .task(id: entry.id) {
             if let id = entry.id {
-                collections = (try? await collectionRepo.fetchCollections(forEntryId: id)) ?? []
+                await detailViewModel.load(for: id)
             }
         }
     }
@@ -103,7 +103,7 @@ struct EntryDetailView: View {
                 )
             }
 
-            if !collections.isEmpty {
+            if !detailViewModel.collections.isEmpty {
                 collectionsRow
             }
         }
@@ -138,7 +138,7 @@ struct EntryDetailView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 54, alignment: .leading)
             FlowLayout(spacing: Spacing.xs) {
-                ForEach(collections, id: \.id) { collection in
+                ForEach(detailViewModel.collections, id: \.id) { collection in
                     collectionChip(collection)
                 }
             }
@@ -202,53 +202,4 @@ private struct FlowLayout: Layout {
     }
 }
 
-// MARK: - ContentType display helpers
 
-private extension ContentType {
-    var displayName: String {
-        switch self {
-        case .url:      return String(localized: "URL")
-        case .email:    return String(localized: "Email")
-        case .phone:    return String(localized: "Phone")
-        case .color:    return String(localized: "Color")
-        case .code:     return String(localized: "Code")
-        case .text:     return String(localized: "Text")
-        case .json:     return String(localized: "JSON")
-        case .sql:      return String(localized: "SQL")
-        case .shell:    return String(localized: "Shell")
-        case .markdown: return String(localized: "Markdown")
-        case .image:    return String(localized: "Image")
-        }
-    }
-
-    var iconName: String {
-        switch self {
-        case .url:      return "link"
-        case .email:    return "envelope"
-        case .phone:    return "phone"
-        case .color:    return "paintpalette"
-        case .code:     return "chevron.left.forwardslash.chevron.right"
-        case .text:     return "doc.on.doc"
-        case .json:     return "curlybraces"
-        case .sql:      return "tablecells"
-        case .shell:    return "terminal"
-        case .markdown: return "text.alignleft"
-        case .image:    return "photo"
-        }
-    }
-}
-
-// MARK: - Color from hex string
-
-private extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: .init(charactersIn: "#"))
-        let scanner = Scanner(string: hex)
-        var rgb: UInt64 = 0
-        scanner.scanHexInt64(&rgb)
-        let r = Double((rgb >> 16) & 0xFF) / 255
-        let g = Double((rgb >> 8) & 0xFF) / 255
-        let b = Double(rgb & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
-    }
-}

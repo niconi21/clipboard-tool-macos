@@ -33,6 +33,9 @@ struct MenuBarView: View {
                 .help(historyViewModel.isPaused
                       ? String(localized: "Resume monitoring")
                       : String(localized: "Pause monitoring"))
+                .accessibilityLabel(historyViewModel.isPaused
+                      ? String(localized: "Resume monitoring")
+                      : String(localized: "Pause monitoring"))
                 Button {
                     openSettings()
                     NSApp.activate(ignoringOtherApps: true)
@@ -42,6 +45,7 @@ struct MenuBarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel(String(localized: "Settings"))
             }
             .padding(.horizontal, Spacing.md)
             .padding(.top, Spacing.sm)

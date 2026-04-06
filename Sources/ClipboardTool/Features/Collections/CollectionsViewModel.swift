@@ -10,10 +10,20 @@ final class CollectionsViewModel {
     var subcollectionsTarget: Collection? = nil
     var isShowingSubcollections: Bool = false
 
-    private let repository = CollectionRepository()
+    private let repository: CollectionRepository
+    private var loadTask: Task<Void, Never>?
 
-    func load() {
-        Task { await refresh() }
+    init(repository: CollectionRepository = CollectionRepository()) {
+        self.repository = repository
+    }
+
+    func load(force: Bool = false) {
+        guard collections.isEmpty || force else { return }
+        loadTask?.cancel()
+        loadTask = Task { [weak self] in
+            guard let self else { return }
+            await refresh()
+        }
     }
 
     @MainActor
@@ -36,25 +46,23 @@ final class CollectionsViewModel {
     func createCollection() {
         let name = newCollectionName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.create(name: name)
-            await MainActor.run {
-                newCollectionName = ""
-                isCreating = false
-            }
+            newCollectionName = ""
+            isCreating = false
             await refresh()
         }
     }
 
     func deleteCollection(_ collection: Collection) {
         guard let id = collection.id else { return }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.delete(id: id)
-            await MainActor.run {
-                if selectedCollection?.id == id {
-                    selectedCollection = nil
-                    entriesInSelected = []
-                }
+            if selectedCollection?.id == id {
+                selectedCollection = nil
+                entriesInSelected = []
             }
             await refresh()
         }
@@ -62,7 +70,8 @@ final class CollectionsViewModel {
 
     func removeEntry(_ entry: ClipboardEntry, from collection: Collection) {
         guard let entryId = entry.id, let collectionId = collection.id else { return }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.removeEntry(entryId, from: collectionId)
             await refresh()
         }

@@ -11,7 +11,7 @@ struct HistoryView: View {
     @State private var isScrolledDown = false
     /// Controls the alias-entry sheet for a selected entry.
     @State private var aliasTarget: ClipboardEntry? = nil
-    /// The text the user is typing into the alias NSAlert.
+    /// The text the user is typing into the alias sheet.
     @State private var pendingAlias: String = ""
 
     private let topAnchorID = "historyListTop"
@@ -22,9 +22,14 @@ struct HistoryView: View {
         } else {
             HSplitView {
                 listPanel
-                if viewModel.selectedId != nil {
-                    detailPanel
-                        .frame(minWidth: 200)
+                if let entry = viewModel.selectedEntry {
+                    EntryDetailView(entry: entry) {
+                        viewModel.copy(entry: entry)
+                        closePopover()
+                    } onBack: {
+                        viewModel.selectedId = nil
+                    }
+                    .frame(minWidth: 200)
                 }
             }
         }
@@ -93,6 +98,7 @@ struct HistoryView: View {
                         .buttonStyle(.plain)
                         .padding(Spacing.md)
                         .transition(.opacity.combined(with: .scale))
+                        .accessibilityLabel(String(localized: "Scroll to top"))
                     }
                 }
                 // Re-classify All toolbar button
@@ -111,18 +117,47 @@ struct HistoryView: View {
                 }
             }
         }
+        .sheet(item: $aliasTarget) { entry in
+            aliasSheet(for: entry)
+        }
     }
 
-    // MARK: - Detail panel
+    // MARK: - Alias sheet
 
-    @ViewBuilder
-    private var detailPanel: some View {
-        if let selectedId = viewModel.selectedId,
-           let entry = viewModel.groupedEntries.flatMap(\.entries).first(where: { $0.id == selectedId }) {
-            EntryDetailView(entry: entry) {
-                viewModel.copy(entry: entry)
-                closePopover()
+    private func aliasSheet(for entry: ClipboardEntry) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(String(localized: "Set Alias"))
+                .font(.headline)
+
+            Text(String(localized: "Enter a short alias for this clipboard entry."))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            TextField(String(localized: "e.g. My API key"), text: $pendingAlias)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Spacer()
+                Button(String(localized: "Cancel")) {
+                    aliasTarget = nil
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button(String(localized: "Save")) {
+                    if let id = entry.id {
+                        let value = pendingAlias.trimmingCharacters(in: .whitespaces)
+                        viewModel.setAlias(id: id, alias: value.isEmpty ? nil : value)
+                    }
+                    aliasTarget = nil
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
             }
+        }
+        .padding(Spacing.lg)
+        .frame(width: 320)
+        .onAppear {
+            pendingAlias = entry.alias ?? ""
         }
     }
 
@@ -162,7 +197,7 @@ struct HistoryView: View {
 
         // #23 — Alias
         Button(String(localized: "Set Alias…")) {
-            showAliasAlert(for: entry)
+            aliasTarget = entry
         }
         if entry.alias != nil {
             Button(String(localized: "Clear Alias")) {
@@ -193,29 +228,6 @@ struct HistoryView: View {
 
         Button(String(localized: "Delete"), role: .destructive) {
             viewModel.delete(entry: entry)
-        }
-    }
-
-    // MARK: - Alias alert
-
-    private func showAliasAlert(for entry: ClipboardEntry) {
-        guard let id = entry.id else { return }
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Set Alias")
-        alert.informativeText = String(localized: "Enter a short alias for this clipboard entry.")
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: String(localized: "Save"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 22))
-        textField.placeholderString = String(localized: "e.g. My API key")
-        textField.stringValue = entry.alias ?? ""
-        alert.accessoryView = textField
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            let value = textField.stringValue.trimmingCharacters(in: .whitespaces)
-            viewModel.setAlias(id: id, alias: value.isEmpty ? nil : value)
         }
     }
 }

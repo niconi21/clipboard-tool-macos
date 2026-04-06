@@ -19,6 +19,27 @@ enum ContentType: String, Codable, CaseIterable {
 
 struct ContentClassifier {
 
+    // MARK: - Cached detectors and expressions
+
+    private static let linkDetector = try? NSDataDetector(
+        types: NSTextCheckingResult.CheckingType.link.rawValue
+    )
+    private static let phoneDetector = try? NSDataDetector(
+        types: NSTextCheckingResult.CheckingType.phoneNumber.rawValue
+    )
+    private static let emailRegex = try? NSRegularExpression(
+        pattern: #"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"#,
+        options: []
+    )
+    private static let colorRegex = try? NSRegularExpression(
+        pattern: #"^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"#,
+        options: []
+    )
+    private static let bareDomainRegex = try? NSRegularExpression(
+        pattern: #"^(?:www\.)?[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+(?:[/?#]\S*)?$"#,
+        options: []
+    )
+
     // MARK: - Public API
 
     func classify(_ string: String) -> ContentType {
@@ -37,7 +58,7 @@ struct ContentClassifier {
 
     private func isURL(_ string: String) -> Bool {
         // 1. Scheme-based URLs — delegate to NSDataDetector for robust handling.
-        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+        if let detector = Self.linkDetector {
             let range = NSRange(string.startIndex..., in: string)
             let matches = detector.matches(in: string, options: [], range: range)
             // Accept only when the entire string is covered by a URL match.
@@ -50,18 +71,16 @@ struct ContentClassifier {
 
         // 2. Bare-domain patterns not caught by NSDataDetector
         //    e.g. "github.com/foo", "www.example.org"
-        let barePattern = #"^(?:www\.)?[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+(?:[/?#]\S*)?$"#
-        return matchesEntire(pattern: barePattern, in: string)
+        return matchesEntire(regex: Self.bareDomainRegex, in: string)
     }
 
     private func isEmail(_ string: String) -> Bool {
-        let pattern = #"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"#
-        return matchesEntire(pattern: pattern, in: string)
+        return matchesEntire(regex: Self.emailRegex, in: string)
     }
 
     private func isPhone(_ string: String) -> Bool {
         // Use NSDataDetector for phone number detection.
-        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.phoneNumber.rawValue) {
+        if let detector = Self.phoneDetector {
             let range = NSRange(string.startIndex..., in: string)
             let matches = detector.matches(in: string, options: [], range: range)
             if let match = matches.first,
@@ -74,9 +93,7 @@ struct ContentClassifier {
     }
 
     private func isColor(_ string: String) -> Bool {
-        // Matches #RGB, #RRGGBB, #RRGGBBAA (case insensitive).
-        let pattern = #"^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"#
-        return matchesEntire(pattern: pattern, in: string)
+        return matchesEntire(regex: Self.colorRegex, in: string)
     }
 
     private func isCode(_ string: String) -> Bool {
@@ -97,11 +114,9 @@ struct ContentClassifier {
 
     // MARK: - Helpers
 
-    /// Returns true when the entire string matches the given regex pattern.
-    private func matchesEntire(pattern: String, in string: String) -> Bool {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            return false
-        }
+    /// Returns true when the entire string matches the given pre-compiled regex.
+    private func matchesEntire(regex: NSRegularExpression?, in string: String) -> Bool {
+        guard let regex else { return false }
         let range = NSRange(string.startIndex..., in: string)
         return regex.firstMatch(in: string, options: .anchored, range: range)?.range == range
     }

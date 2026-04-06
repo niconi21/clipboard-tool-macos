@@ -2,27 +2,23 @@ import SwiftUI
 import AppKit
 
 // View with Export and Import buttons for user configuration.
-// Uses NSSavePanel / NSOpenPanel to pick file destinations — must run on @MainActor.
+// Uses NSSavePanel / NSOpenPanel with callback-based API to avoid blocking the main actor.
 @MainActor
 struct ExportImportView: View {
-    @State private var alertMessage: String = ""
-    @State private var showAlert = false
-    @State private var isSuccess = false
-
-    private let manager = ExportImportManager()
+    @State private var viewModel = ExportImportViewModel()
 
     var body: some View {
         Form {
             Section {
                 LabeledContent(String(localized: "Export Configuration")) {
                     Button(String(localized: "Export…")) {
-                        Task { await exportConfiguration() }
+                        exportConfiguration()
                     }
                 }
 
                 LabeledContent(String(localized: "Import Configuration")) {
                     Button(String(localized: "Import…")) {
-                        Task { await importConfiguration() }
+                        importConfiguration()
                     }
                 }
             } header: {
@@ -35,57 +31,37 @@ struct ExportImportView: View {
         .formStyle(.grouped)
         .padding(Spacing.lg)
         .alert(
-            isSuccess
-                ? String(localized: "Success")
-                : String(localized: "Error"),
-            isPresented: $showAlert
+            viewModel.alertTitle,
+            isPresented: $viewModel.showAlert
         ) {
             Button(String(localized: "OK"), role: .cancel) {}
         } message: {
-            Text(alertMessage)
+            Text(viewModel.alertMessage)
         }
     }
 
     // MARK: - Private
 
-    private func exportConfiguration() async {
+    private func exportConfiguration() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "clipboard-tool-config.json"
         panel.title = String(localized: "Export Configuration")
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        do {
-            let data = try await manager.export(db: DatabaseManager.shared.pool)
-            try data.write(to: url, options: .atomic)
-            isSuccess = true
-            alertMessage = String(localized: "Configuration exported successfully.")
-        } catch {
-            isSuccess = false
-            alertMessage = error.localizedDescription
+        panel.begin { [weak panel] response in
+            guard response == .OK, let url = panel?.url else { return }
+            Task { await viewModel.export(to: url) }
         }
-        showAlert = true
     }
 
-    private func importConfiguration() async {
+    private func importConfiguration() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.title = String(localized: "Import Configuration")
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        do {
-            let data = try Data(contentsOf: url)
-            try await manager.import(data: data, db: DatabaseManager.shared.pool)
-            isSuccess = true
-            alertMessage = String(localized: "Configuration imported successfully.")
-        } catch {
-            isSuccess = false
-            alertMessage = error.localizedDescription
+        panel.begin { [weak panel] response in
+            guard response == .OK, let url = panel?.url else { return }
+            Task { await viewModel.import(from: url) }
         }
-        showAlert = true
     }
 }

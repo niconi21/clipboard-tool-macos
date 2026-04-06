@@ -1,64 +1,9 @@
 import SwiftUI
-import AppKit
-
-// MARK: - ViewModel
-
-@Observable
-final class SubcollectionsViewModel {
-    private(set) var subcollections: [Subcollection] = []
-    private(set) var isLoading = false
-
-    private let repository: SubcollectionRepository
-    let collection: Collection
-
-    init(collection: Collection, repository: SubcollectionRepository = SubcollectionRepository()) {
-        self.collection = collection
-        self.repository = repository
-    }
-
-    func load() {
-        Task { await refresh() }
-    }
-
-    @MainActor
-    func refresh() async {
-        guard let collectionId = collection.id else { return }
-        subcollections = (try? await repository.fetchAll(for: collectionId)) ?? []
-    }
-
-    func addSubcollection(name: String) {
-        guard let collectionId = collection.id else { return }
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        Task {
-            try? await repository.create(name: trimmed, collectionId: collectionId)
-            await refresh()
-        }
-    }
-
-    func delete(_ subcollection: Subcollection) {
-        guard let id = subcollection.id else { return }
-        Task {
-            try? await repository.delete(id: id)
-            await refresh()
-        }
-    }
-
-    func rename(_ subcollection: Subcollection, to newName: String) {
-        guard let id = subcollection.id else { return }
-        let trimmed = newName.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        Task {
-            try? await repository.rename(id: id, name: trimmed)
-            await refresh()
-        }
-    }
-}
-
-// MARK: - View
 
 struct SubcollectionsView: View {
     @State private var viewModel: SubcollectionsViewModel
+    @State private var isAddingSubcollection = false
+    @State private var newSubcollectionName = ""
     @Environment(\.dismiss) private var dismiss
 
     init(collection: Collection) {
@@ -70,7 +15,7 @@ struct SubcollectionsView: View {
             header
             Divider()
 
-            if viewModel.subcollections.isEmpty {
+            if viewModel.subcollections.isEmpty && !isAddingSubcollection {
                 emptyState
             } else {
                 subcollectionList
@@ -121,7 +66,9 @@ struct SubcollectionsView: View {
                 .foregroundStyle(.secondary)
 
             Button {
-                promptForSubcollectionName()
+                withAnimation(Animations.list) {
+                    isAddingSubcollection = true
+                }
             } label: {
                 Label(String(localized: "New Subcollection"), systemImage: "plus")
                     .font(Typography.label)
@@ -160,8 +107,22 @@ struct SubcollectionsView: View {
     // MARK: - Footer
 
     private var footer: some View {
+        Group {
+            if isAddingSubcollection {
+                creationRow
+            } else {
+                newSubcollectionButton
+            }
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+    }
+
+    private var newSubcollectionButton: some View {
         Button {
-            promptForSubcollectionName()
+            withAnimation(Animations.list) {
+                isAddingSubcollection = true
+            }
         } label: {
             Label(String(localized: "New Subcollection"), systemImage: "plus")
                 .font(Typography.label)
@@ -170,26 +131,48 @@ struct SubcollectionsView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
-        .padding(.horizontal, Spacing.sm)
+    }
+
+    private var creationRow: some View {
+        HStack(spacing: Spacing.sm) {
+            TextField(String(localized: "Subcollection name"), text: $newSubcollectionName)
+                .font(Typography.body)
+                .textFieldStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .onSubmit { confirmAdd() }
+
+            Button {
+                confirmAdd()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+            .disabled(newSubcollectionName.trimmingCharacters(in: .whitespaces).isEmpty)
+            .frame(minWidth: 44, minHeight: 44)
+
+            Button {
+                withAnimation(Animations.list) {
+                    isAddingSubcollection = false
+                    newSubcollectionName = ""
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .frame(minWidth: 44, minHeight: 44)
+        }
         .padding(.vertical, Spacing.xs)
     }
 
-    // MARK: - NSAlert prompt
-
-    private func promptForSubcollectionName() {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "New Subcollection")
-        alert.informativeText = String(localized: "Enter a name for the subcollection.")
-        alert.addButton(withTitle: String(localized: "Create"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        textField.placeholderString = String(localized: "Subcollection name")
-        alert.accessoryView = textField
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            viewModel.addSubcollection(name: textField.stringValue)
+    private func confirmAdd() {
+        viewModel.addSubcollection(name: newSubcollectionName)
+        newSubcollectionName = ""
+        withAnimation(Animations.list) {
+            isAddingSubcollection = false
         }
     }
 }

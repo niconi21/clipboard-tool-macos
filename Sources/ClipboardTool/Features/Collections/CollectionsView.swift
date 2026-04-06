@@ -217,7 +217,8 @@ private struct CollectionRowView: View {
                     .foregroundStyle(Color.accentColor.opacity(0.7))
             }
             .buttonStyle(.plain)
-            .frame(minWidth: 28, minHeight: 28)
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel(String(localized: "View subcollections"))
             .help(String(localized: "View Subcollections"))
         }
         .padding(.vertical, Spacing.xs)

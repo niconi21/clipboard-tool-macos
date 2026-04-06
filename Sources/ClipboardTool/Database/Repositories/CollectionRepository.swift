@@ -53,6 +53,7 @@ struct CollectionRepository {
                 JOIN entry_collections ON entries.id = entry_collections.entry_id
                 WHERE entry_collections.collection_id = ?
                 ORDER BY entries.created_at DESC
+                LIMIT 500
             """, arguments: [collectionId])
         }
     }
@@ -92,6 +93,7 @@ struct CollectionRepository {
                 JOIN entry_collections ON collections.id = entry_collections.collection_id
                 WHERE entry_collections.entry_id = ?
                 ORDER BY collections.created_at ASC
+                LIMIT 50
             """, arguments: [entryId])
         }
     }

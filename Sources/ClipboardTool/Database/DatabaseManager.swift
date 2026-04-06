@@ -1,10 +1,13 @@
 import Foundation
 import GRDB
+import os.log
 
 final class DatabaseManager {
     static let shared = DatabaseManager()
 
     let pool: DatabasePool
+
+    private static let logger = Logger(subsystem: "com.niconi21.clipboardtool", category: "database")
 
     private init() {
         do {
@@ -14,7 +17,8 @@ final class DatabaseManager {
             pool = try DatabasePool(path: url.path, configuration: config)
             try Self.runMigrations(pool)
         } catch {
-            fatalError("Failed to open database: \(error)")
+            Self.logger.critical("Database initialization failed: \(error.localizedDescription)")
+            fatalError("Database initialization failed: \(error)")
         }
     }
 

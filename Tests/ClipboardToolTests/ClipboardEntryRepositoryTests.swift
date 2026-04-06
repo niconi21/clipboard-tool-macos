@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 import GRDB
 @testable import ClipboardTool
@@ -76,8 +77,11 @@ final class ClipboardEntryRepositoryTests: XCTestCase {
                                    contentType: .text, createdAt: .now, isFavorite: false)
         try await repository.insert(entry)
 
-        let exists = try await repository.exists(content: "Unique content")
-        let notExists = try await repository.exists(content: "Not there")
+        let hashOf: (String) -> String = { content in
+            SHA256.hash(data: Data(content.utf8)).map { String(format: "%02x", $0) }.joined()
+        }
+        let exists = try await repository.exists(contentHash: hashOf("Unique content"))
+        let notExists = try await repository.exists(contentHash: hashOf("Not there"))
         XCTAssertTrue(exists)
         XCTAssertFalse(notExists)
     }

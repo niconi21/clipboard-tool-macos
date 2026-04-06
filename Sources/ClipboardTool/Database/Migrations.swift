@@ -132,5 +132,23 @@ enum Migrations {
                 )
             }
         }
+
+        migrator.registerMigration("v2_performance_indexes") { db in
+            // 1. Add content_hash column for O(log n) dedup checks
+            try db.alter(table: "entries") { t in
+                t.add(column: "content_hash", .text)
+            }
+            // 2. Index on content_hash (unique — dedup semantics)
+            try db.create(index: "idx_entries_content_hash", on: "entries", columns: ["content_hash"], unique: true, ifNotExists: true)
+            // 3. Backfill hash for existing rows (SHA256 hex of UTF8 content)
+            // SQLite doesn't have SHA256 natively — leave NULL for existing rows,
+            // the app will compute and fill on next access.
+
+            // 4. Index on entry_collections(collection_id) — fetchEntries does WHERE collection_id = ?
+            try db.create(index: "idx_ec_collection_id", on: "entry_collections", columns: ["collection_id"], ifNotExists: true)
+
+            // 5. Index on collection_rules(enabled, priority)
+            try db.create(index: "idx_cr_enabled_priority", on: "collection_rules", columns: ["enabled", "priority"], ifNotExists: true)
+        }
     }
 }

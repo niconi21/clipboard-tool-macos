@@ -21,7 +21,7 @@ final class OnboardingViewModel {
     }
 
     func complete() {
-        UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+        UserDefaults.standard.onboardingCompleted = true
     }
 }
 
@@ -104,7 +104,7 @@ private struct StepIndicatorView: View {
 // MARK: - Navigation bar
 
 private struct NavigationBarView: View {
-    var viewModel: OnboardingViewModel
+    @Bindable var viewModel: OnboardingViewModel
     var onDismiss: () -> Void
 
     private var isLastStep: Bool {
@@ -199,7 +199,7 @@ private struct WelcomeStepView: View {
 // MARK: - Step 2: Accessibility Permission
 
 private struct AccessibilityStepView: View {
-    var viewModel: OnboardingViewModel
+    let viewModel: OnboardingViewModel
 
     var body: some View {
         VStack(spacing: Spacing.xl) {
@@ -234,7 +234,7 @@ private struct AccessibilityStepView: View {
                 if viewModel.accessibilityGranted {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color(nsColor: .systemGreen))
 
                     Text(String(localized: "Accessibility access granted"))
                         .font(.subheadline)
@@ -269,12 +269,12 @@ private struct ReadyStepView: View {
 
             ZStack {
                 Circle()
-                    .fill(Color.green.opacity(0.12))
+                    .fill(Color(nsColor: .systemGreen).opacity(0.12))
                     .frame(width: 80, height: 80)
 
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 44, weight: .regular))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color(nsColor: .systemGreen))
                     .symbolEffect(.bounce, value: true)
             }
 

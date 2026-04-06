@@ -26,6 +26,7 @@ struct SettingsView: View {
 // MARK: - General
 
 private struct GeneralSettingsView: View {
+    @State private var autoStart = AutoStartManager()
     @State private var launchAtLogin: Bool = AutoStartManager().isEnabled
     @AppStorage("historyLimit") private var historyLimit: Int = 100
     @AppStorage("appLanguage") private var appLanguage: String = "en"
@@ -38,9 +39,9 @@ private struct GeneralSettingsView: View {
                     .onChange(of: launchAtLogin) { _, newValue in
                         do {
                             if newValue {
-                                try AutoStartManager().enable()
+                                try autoStart.enable()
                             } else {
-                                try AutoStartManager().disable()
+                                try autoStart.disable()
                             }
                         } catch {
                             // Expected to fail in dev without signing — swallow silently
@@ -73,11 +74,11 @@ private struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(Spacing.lg)
-        .alert("Language changed", isPresented: $showRestartAlert) {
-            Button("Restart now") { NSApp.relaunch() }
+        .alert(String(localized: "Language changed"), isPresented: $showRestartAlert) {
+            Button(String(localized: "Restart now")) { NSApp.relaunch() }
             Button(String(localized: "Cancel"), role: .cancel) {}
         } message: {
-            Text("Restart the app to apply the new language.")
+            Text(String(localized: "Restart the app to apply the new language."))
         }
     }
 }
@@ -132,17 +133,14 @@ private struct ShortcutsSettingsView: View {
 // MARK: - Storage
 
 private struct StorageSettingsView: View {
+    @State private var viewModel = StorageSettingsViewModel()
     @State private var showingClearConfirmation = false
-
-    private var dbPath: String {
-        DatabaseManager.shared.pool.path
-    }
 
     var body: some View {
         Form {
             Section {
                 LabeledContent(String(localized: "Database")) {
-                    Text(dbPath)
+                    Text(viewModel.dbPath)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -159,7 +157,7 @@ private struct StorageSettingsView: View {
                 ) {
                     Button(String(localized: "Clear"), role: .destructive) {
                         Task {
-                            try? await ClipboardEntryRepository().deleteAll()
+                            await viewModel.clearHistory()
                         }
                     }
                     Button(String(localized: "Cancel"), role: .cancel) {}
@@ -170,6 +168,14 @@ private struct StorageSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(Spacing.lg)
+        .alert(
+            String(localized: "Error"),
+            isPresented: $viewModel.showClearError
+        ) {
+            Button(String(localized: "OK"), role: .cancel) {}
+        } message: {
+            Text(viewModel.clearErrorMessage)
+        }
     }
 }
 
@@ -189,11 +195,11 @@ private struct AboutSettingsView: View {
                     .font(.system(size: 48, weight: .light))
                     .foregroundStyle(Color.accentColor)
 
-                Text("Clipboard Tool")
+                Text(String(localized: "Clipboard Tool"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Version \(appVersion)")
+                Text(String(localized: "Version \(appVersion)"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -36,17 +36,13 @@ final class ClipboardMonitor {
     // MARK: - Public API
 
     /// Emits each new, non-empty, deduplicated string read from NSPasteboard.
-    var changes: AsyncStream<String> {
-        AsyncStream { continuation in
-            streamContinuation = continuation
-        }
-    }
+    private(set) var changes: AsyncStream<String>
 
     /// Starts the polling loop. Safe to call multiple times — subsequent calls
     /// while already running are no-ops.
     func start() {
         guard pollingTask == nil else { return }
-        pollingTask = Task.detached(priority: .utility) { [weak self] in
+        pollingTask = Task(priority: .utility) { [weak self] in
             await self?.runPollingLoop()
         }
     }
@@ -74,9 +70,12 @@ final class ClipboardMonitor {
         resumeTask = nil
         if let duration {
             resumeTask = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(duration))
-                guard !Task.isCancelled else { return }
-                self?.resume()
+                do {
+                    try await Task.sleep(for: .seconds(duration))
+                    self?.resume()
+                } catch {
+                    // Task was cancelled — do not resume
+                }
             }
         }
     }
@@ -98,6 +97,14 @@ final class ClipboardMonitor {
         streamContinuation = nil
     }
 
+    // MARK: - Init
+
+    init() {
+        var continuation: AsyncStream<String>.Continuation?
+        self.changes = AsyncStream { continuation = $0 }
+        self.streamContinuation = continuation
+    }
+
     // MARK: - Private
 
     private var pollingTask: Task<Void, Never>?
@@ -117,6 +124,8 @@ final class ClipboardMonitor {
     // Self-copy prevention: when true, the very next changeCount transition is skipped
     var skipNextDetection: Bool = false
 
+    private let imageStore = ImageStore()
+
     private func runPollingLoop() async {
         while !Task.isCancelled {
             if !isPaused {
@@ -135,9 +144,6 @@ final class ClipboardMonitor {
         return elapsed < Self.activityWindowSeconds ? Self.activeInterval : Self.idleInterval
     }
 
-    // Isolated to avoid data races: all mutable state is accessed on the
-    // actor that owns this instance, but since ClipboardMonitor is not an
-    // actor we keep mutation local to this single Task.detached call path.
     private func readIfChanged() {
         let pasteboard = NSPasteboard.general
         let currentCount = pasteboard.changeCount
@@ -174,7 +180,7 @@ final class ClipboardMonitor {
               )?.first as? NSImage else { return }
 
         // Store image on disk (dedup by SHA-256 hash).
-        guard let relativePath = try? ImageStore().store(image: image) else { return }
+        guard let relativePath = try? imageStore.store(image: image) else { return }
         // relativePath is nil when the image is already stored (dedup).
         lastEmittedValue = relativePath
         streamContinuation?.yield(relativePath)

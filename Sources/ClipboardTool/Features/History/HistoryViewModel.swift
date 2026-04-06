@@ -12,6 +12,12 @@ final class HistoryViewModel {
     /// Forwarded from `ClipboardMonitor.isPaused` so the UI can bind to it.
     var isPaused: Bool { monitor.isPaused }
 
+    /// Returns the currently selected entry without requiring a flatMap in the view body.
+    var selectedEntry: ClipboardEntry? {
+        guard let id = selectedId else { return nil }
+        return groupedEntries.flatMap(\.entries).first { $0.id == id }
+    }
+
     // MARK: - Search
 
     var searchText: String = "" {
@@ -25,7 +31,7 @@ final class HistoryViewModel {
             }
         }
     }
-    private var searchDebounceTask: Task<Void, Error>?
+    private var searchDebounceTask: Task<Void, Never>?
 
     // MARK: - Private
 
@@ -33,7 +39,6 @@ final class HistoryViewModel {
     private let collectionRepository: CollectionRepository
     private let monitor: ClipboardMonitor
     private let classifier = ContentClassifier()
-    private let ruleEngine = CollectionRuleEngine()
     private var monitorTask: Task<Void, Never>?
 
     init(repository: ClipboardEntryRepository = ClipboardEntryRepository(),
@@ -48,7 +53,10 @@ final class HistoryViewModel {
 
     func start() {
         monitor.start()
-        Task { await loadEntries() }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.loadEntries()
+        }
         monitorTask = Task { [weak self] in
             guard let self else { return }
             for await content in self.monitor.changes {
@@ -71,7 +79,8 @@ final class HistoryViewModel {
 
     func delete(entry: ClipboardEntry) {
         guard let id = entry.id else { return }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.delete(id: id)
             await loadEntries()
         }
@@ -79,7 +88,8 @@ final class HistoryViewModel {
 
     func toggleFavorite(entry: ClipboardEntry) {
         guard let id = entry.id else { return }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.toggleFavorite(id: id)
             await loadEntries()
         }
@@ -97,14 +107,16 @@ final class HistoryViewModel {
     }
 
     func setAlias(id: Int64, alias: String?) {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.updateAlias(id: id, alias: alias)
             await loadEntries()
         }
     }
 
     func setContentType(id: Int64, type: ContentType) {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             try? await repository.updateContentType(id: id, contentType: type)
             await loadEntries()
         }
@@ -112,7 +124,8 @@ final class HistoryViewModel {
 
     func reclassifyEntry(entry: ClipboardEntry) {
         guard let entryId = entry.id, !entry.manualOverride else { return }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             let detected = classifier.classify(entry.content)
             if detected != entry.contentType {
                 try? await repository.updateContentType(id: entryId, contentType: detected)
@@ -123,7 +136,8 @@ final class HistoryViewModel {
     }
 
     func reclassifyAll() {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             let all = (try? await repository.fetchAll()) ?? []
             for entry in all where !entry.manualOverride {
                 guard let entryId = entry.id else { continue }
@@ -140,9 +154,7 @@ final class HistoryViewModel {
     }
 
     func copySelected() {
-        guard let id = selectedId,
-              let entry = groupedEntries.flatMap(\.entries).first(where: { $0.id == id })
-        else { return }
+        guard let entry = selectedEntry else { return }
         copy(entry: entry)
     }
 
@@ -185,15 +197,50 @@ final class HistoryViewModel {
         )
         let savedEntry = try? await repository.insert(entry)
         if let savedEntry, let entryId = savedEntry.id {
-            let collectionIds = (try? await ruleEngine.matchingCollections(
-                for: savedEntry,
-                db: DatabaseManager.shared.pool
-            )) ?? []
+            let rules = (try? await collectionRepository.fetchRules()) ?? []
+            let collectionIds = matchingCollections(for: savedEntry, rules: rules)
             for colId in collectionIds {
                 try? await collectionRepository.addEntry(entryId, to: colId)
             }
         }
         await loadEntries()
+    }
+
+    /// Returns unique collection IDs whose rules match `entry`.
+    /// Rules must already be filtered to enabled and sorted by priority descending.
+    private func matchingCollections(for entry: ClipboardEntry, rules: [CollectionRule]) -> [Int64] {
+        var seen = Set<Int64>()
+        var result: [Int64] = []
+
+        for rule in rules {
+            // Skip rules with neither condition set.
+            guard rule.contentType != nil || rule.contentPattern != nil else { continue }
+
+            let typeMatches: Bool
+            if let ruleContentType = rule.contentType {
+                typeMatches = entry.contentType.rawValue == ruleContentType
+            } else {
+                typeMatches = true
+            }
+
+            let patternMatches: Bool
+            if let pattern = rule.contentPattern {
+                let range = NSRange(entry.content.startIndex..., in: entry.content)
+                let regex = try? NSRegularExpression(pattern: pattern)
+                patternMatches = regex?.firstMatch(in: entry.content, range: range) != nil
+            } else {
+                patternMatches = true
+            }
+
+            guard typeMatches && patternMatches else { continue }
+
+            let collectionId = rule.collectionId
+            if seen.insert(collectionId).inserted {
+                result.append(collectionId)
+            }
+        }
+
+        return result
     }
 
     private func group(_ entries: [ClipboardEntry]) -> [(label: String, entries: [ClipboardEntry])] {

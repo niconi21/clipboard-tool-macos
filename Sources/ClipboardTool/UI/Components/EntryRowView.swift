@@ -6,11 +6,19 @@ struct EntryRowView: View {
     @State private var collections: [Collection] = []
     private let collectionRepo = CollectionRepository()
 
+    // MARK: - Cached formatters
+
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.sm) {
                 // Content type icon
-                Image(systemName: iconName(for: entry.contentType))
+                Image(systemName: entry.contentType.iconName)
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
@@ -31,7 +39,8 @@ struct EntryRowView: View {
                 if entry.isFavorite {
                     Image(systemName: "star.fill")
                         .font(.system(size: 10))
-                        .foregroundStyle(.yellow)
+                        .foregroundStyle(Color(nsColor: .systemYellow))
+                        .accessibilityLabel(String(localized: "Favorite"))
                 }
             }
 
@@ -90,42 +99,9 @@ struct EntryRowView: View {
         if seconds < 60 {
             return String(localized: "Just now")
         }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        formatter.dateTimeStyle = .named
-        return formatter.localizedString(for: date, relativeTo: now)
+        return Self.relativeDateFormatter.localizedString(for: date, relativeTo: now)
     }
 
-    // MARK: - Icon mapping
-
-    private func iconName(for type: ContentType) -> String {
-        switch type {
-        case .url:      return "link"
-        case .email:    return "envelope"
-        case .phone:    return "phone"
-        case .color:    return "paintpalette"
-        case .code:     return "chevron.left.forwardslash.chevron.right"
-        case .text:     return "doc.on.doc"
-        case .json:     return "curlybraces"
-        case .sql:      return "tablecells"
-        case .shell:    return "terminal"
-        case .markdown: return "text.alignleft"
-        case .image:    return "photo"
-        }
-    }
 }
 
-// MARK: - Color from hex string
 
-private extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: .init(charactersIn: "#"))
-        let scanner = Scanner(string: hex)
-        var rgb: UInt64 = 0
-        scanner.scanHexInt64(&rgb)
-        let r = Double((rgb >> 16) & 0xFF) / 255
-        let g = Double((rgb >> 8) & 0xFF) / 255
-        let b = Double(rgb & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
-    }
-}
